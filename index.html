@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>사인법칙</title>
+  <!-- MathJax 로드 (LaTeX 렌더링용) -->
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" defer></script>
+  <style>
+    body {
+      font-family: "Segoe UI", sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f6f8fa;
+    }
+    h1, h2, h3, h4 {
+      text-align: center;
+      margin: 10px;
+      color: #333;
+    }
+
+    /* 중앙 정렬을 위한 컨테이너 */
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    /* 메인 메뉴 */
+    #mainMenu, #quizSection, #resultSection {
+      display: none;
+    }
+
+    /* 이름 입력란을 중앙에 */
+    #nameInputSection {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80vh;
+    }
+    #nameInput {
+      width: 60%;
+      padding: 10px;
+      font-size: 1rem;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    /* 난이도 버튼 */
+    .difficultyBtn {
+      margin: 5px;
+      padding: 8px 16px;
+      font-size: 1rem;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+      color: #fff;
+      background: #6c757d;
+    }
+    .difficultyBtn:hover {
+      background: #5a6268;
+    }
+
+    /* 문제 표시 영역 */
+    .questionBox {
+      margin: 15px 0;
+      padding: 10px;
+      border-radius: 4px;
+      background: #f2f2f2;
+    }
+
+    /* 보기 버튼 */
+    .choiceBtn {
+      display: block;
+      width: 100%;
+      margin: 5px 0;
+      padding: 10px;
+      text-align: left;
+      font-size: 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #eee;
+      cursor: pointer;
+    }
+    .choiceBtn:hover {
+      background: #e0e0e0;
+    }
+
+    /* 에너지바 (시간 시각화) */
+    #energyBarContainer {
+      width: 100%;
+      height: 20px;
+      background-color: #ddd;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    #energyBar {
+      height: 100%;
+      background-color: #f44336;
+      width: 100%;
+      transition: width 0.5s linear;
+    }
+
+    /* 전체 게임 타이머 */
+    #gameTimer {
+      font-size: 0.9rem;
+      text-align: right;
+      margin: 5px;
+      color: #555;
+    }
+
+    /* 결과 및 서버 응답 */
+    #response {
+      white-space: pre-wrap;
+      background: #f2f2f2;
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 4px;
+      min-height: 50px;
+    }
+
+    /* 버튼들 */
+    .btn {
+      padding: 8px 16px;
+      margin: 10px 5px 0 5px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #fff;
+      background: #17a2b8;
+    }
+    .btn:hover {
+      background: #138496;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>사인법칙</h1>
+
+  <!-- 이름 입력 섹션 -->
+  <div id="nameInputSection">
+    <h3>이름을 입력하세요</h3>
+    <input type="text" id="nameInput" placeholder="이름" />
+    <button class="btn" onclick="goToMainMenu()">확인</button>
+  </div>
+
+  <!-- 메인 메뉴 (난이도 선택) -->
+  <div id="mainMenu">
+    <h2>난이도를 선택하세요</h2>
+    <div>
+      <button class="difficultyBtn" onclick="startGame('최상')">최상 (30초, +20점)</button>
+      <button class="difficultyBtn" onclick="startGame('상')">상 (40초, +15점)</button>
+      <button class="difficultyBtn" onclick="startGame('중')">중 (50초, +13점)</button>
+      <button class="difficultyBtn" onclick="startGame('하')">하 (무제한, +10점)</button>
+    </div>
+  </div>
+
+  <!-- 퀴즈 진행 섹션 -->
+  <div id="quizSection">
+    <!-- 전체 게임 시간 표시 -->
+    <div id="gameTimer">총 진행 시간: 0초</div>
+    <!-- 남은 기회 표시 -->
+    <h3 id="lifeDisplay"></h3>
+
+    <!-- 에너지바(문제별 타이머) -->
+    <div id="energyBarContainer">
+      <div id="energyBar"></div>
+    </div>
+
+    <!-- 점수 표시 -->
+    <h4 id="scoreDisplay"></h4>
+
+    <!-- 문제 내용 -->
+    <div class="questionBox" id="questionText"></div>
+    <!-- 보기 버튼들 -->
+    <div id="choiceButtons"></div>
+
+  </div>
+
+  <!-- 결과 섹션 -->
+  <div id="resultSection">
+    <h2>게임 종료</h2>
+    <div id="finalScoreText"></div>
+    <div>
+      <button class="btn" onclick="sendScore()">점수 전송</button>
+    </div>
+    <div id="response"></div>
+  </div>
+</div>
+
+<script>
+// 전역 변수 설정
+let userName = "";
+let difficulty = "";
+let score = 0;
+let life = 3;        // 남은 기회
+let questionIndex = 0; // 현재 문제 인덱스
+let questionOrder = []; // 랜덤 문제 순서
+let timeLimit = 0;   // 문제별 시간 제한 (초)
+let totalTime = 0;   // 전체 게임 시간 (초)
+let totalTimerInterval; // 전체 게임 타이머
+let energyTimerInterval; // 문제별 에너지바 타이머
+let questionsUsed = {};  // 한 게임에서 나온 문제 중복 방지
+
+// 난이도별 점수
+const difficultyScores = {
+  "최상": 20,
+  "상": 15,
+  "중": 13,
+  "하": 10
+};
+
+// 난이도별 초깃값
+const difficultyTimes = {
+  "최상": 30,
+  "상": 40,
+  "중": 50,
+  "하": Infinity
+};
+
+// 문제 리스트: 각 객체 { qText, choices, correctIndex }
+// 순서는 요구에 따라 "무작위"로 출제해야 하므로, 여기에서는 고정 배열에
+// 모든 문제(총 43문제)를 넣고, 게임 시작 시에 이 배열 자체를 무작위 섞음 + 문제마다 보기 섞음을 진행합니다.
+//
+// 문제는 "하나도 빠짐없이" 1~5, 8~12, 13~18, 23~28, 40~43, 45~49, 52~55, 56~62, 66번 (총 43문제)
+// 각 문항번호는 요구사항에 따라 "생략" (즉, 화면에는 표시하지 않음)
+// 보기에 사용된 수식 \(\le\), \(\ge\)등도 Latex로 처리.  
+// 분수는 \\(\dfrac{}{}\\) 형태로.  
+// 정답이 여러 개인 경우(ex: 60^\circ 또는 120^\circ) 한 보기에 합쳐서 제공.
+
+let allQuestions = [
+  // 1번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(b = \\sqrt{2},\\; c = \\sqrt{3},\\; R = 1\\)일 때, \\(\\angle A\\)의 크기를 구하시오 (단, \\(0^\\circ < C < 90^\\circ\\)).`,
+    choices: [
+      `\\(45^\\circ\\)`,
+      `\\(60^\\circ\\)`,
+      `\\(75^\\circ\\)`,
+      `\\(90^\\circ\\)`
+    ],
+    correctIndex: 2
+  },
+  // 2번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(B = 15^\\circ,\\; C = 45^\\circ,\\; a = 3\\)일 때, 외접원의 반지름 \\(R\\)의 값을 구하시오.`,
+    choices: [
+      `2`,
+      `\\(\\sqrt{2}\\)`,
+      `\\(\\sqrt{3}\\)`,
+      `3`
+    ],
+    correctIndex: 2
+  },
+  // 3번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 45^\\circ,\\; a = 3\\sqrt{2},\\; b = 3\\sqrt{3}\\)일 때, \\(\\angle C\\)의 크기를 구하시오.`,
+    choices: [
+      `\\(15^\\circ\\)`,
+      `\\(30^\\circ\\)`,
+      `\\(60^\\circ\\)`,
+      `\\(75^\\circ \\text{ 또는 } 15^\\circ\\)`
+    ],
+    correctIndex: 3
+  },
+  // 4번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(C = 60^\\circ,\\; b = 5,\\; c = 5\\sqrt{3}\\)일 때, \\(\\angle A\\)의 크기를 구하시오.`,
+    choices: [
+      `\\(90^\\circ\\)`,
+      `\\(60^\\circ\\)`,
+      `\\(45^\\circ\\)`,
+      `\\(30^\\circ\\)`
+    ],
+    correctIndex: 0
+  },
+  // 5번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(B = 30^\\circ,\\; C = 15^\\circ,\\; b = 5\\)일 때, 변 \\(a\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(5\\sqrt{3}\\)`,
+      `5`,
+      `\\(5\\sqrt{2}\\)`,
+      `10`
+    ],
+    correctIndex: 2
+  },
+  // 8번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(b = 12\\sqrt{2},\\; R = 12\\)일 때, \\(\\angle B\\)의 크기를 구하시오.`,
+    choices: [
+      `\\(30^\\circ\\)`,
+      `\\(45^\\circ \\text{ 또는 } 135^\\circ\\)`,
+      `\\(60^\\circ\\)`,
+      `\\(120^\\circ\\)`
+    ],
+    correctIndex: 1
+  },
+  // 9번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 60^\\circ,\\; B = 75^\\circ,\\; c = 10\\)일 때, 외접원의 반지름 \\(R\\)의 값을 구하시오.`,
+    choices: [
+      `5`,
+      `\\(5\\sqrt{3}\\)`,
+      `\\(5\\sqrt{2}\\)`,
+      `10`
+    ],
+    correctIndex: 2
+  },
+  // 10번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 120^\\circ,\\; R = 10\\)일 때, 변 \\(a\\)의 길이를 구하시오.`,
+    choices: [
+      `10`,
+      `\\(10\\sqrt{2}\\)`,
+      `\\(10\\sqrt{3}\\)`,
+      `20`
+    ],
+    correctIndex: 2
+  },
+  // 11번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(B = 75^\\circ,\\; C = 60^\\circ,\\; a = 2\\)일 때, 외접원의 반지름 \\(R\\)의 값을 구하시오.`,
+    choices: [
+      `1`,
+      `\\(\\sqrt{2}\\)`,
+      `2`,
+      `\\(\\sqrt{3}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 12번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 60^\\circ,\\; a = \\sqrt{3}\\)일 때, 외접원의 반지름 \\(R\\)의 길이를 구하시오.`,
+    choices: [
+      `1`,
+      `\\(\\tfrac{1}{2}\\)`,
+      `\\(\\sqrt{3}\\)`,
+      `2`
+    ],
+    correctIndex: 0
+  },
+  // 13번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 60^\\circ,\\; C = 75^\\circ,\\; a = 6\\)일 때, 변 \\(b\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(2\\sqrt{3}\\)`,
+      `\\(2\\sqrt{6}\\)`,
+      `4`,
+      `\\(4\\sqrt{6}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 14번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(B = 75^\\circ,\\; C = 45^\\circ,\\; c = 8\\)일 때, 변 \\(a\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(4\\sqrt{3}\\)`,
+      `\\(4\\sqrt{6}\\)`,
+      `6`,
+      `\\(8\\sqrt{2}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 15번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(B = 45^\\circ,\\; C = 30^\\circ,\\; b = 5\\)일 때, 변 \\(c\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(\\tfrac{5\\sqrt{3}}{2}\\)`,
+      `\\(5\\sqrt{2}\\)`,
+      `\\(\\tfrac{5\\sqrt{2}}{2}\\)`,
+      `\\(\\tfrac{10\\sqrt{2}}{2}\\)`
+    ],
+    correctIndex: 2
+  },
+  // 16번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 30^\\circ,\\; a = 4,\\; c = 8\\)일 때, 변 \\(b\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(2\\sqrt{3}\\)`,
+      `\\(4\\sqrt{2}\\)`,
+      `\\(4\\sqrt{3}\\)`,
+      `8`
+    ],
+    correctIndex: 2
+  },
+  // 17번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 60^\\circ,\\; a = 6\\)일 때, 외접원의 반지름 \\(R\\)의 길이를 구하시오.`,
+    choices: [
+      `2`,
+      `\\(2\\sqrt{2}\\)`,
+      `\\(2\\sqrt{3}\\)`,
+      `6`
+    ],
+    correctIndex: 2
+  },
+  // 18번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a = \\sqrt{3},\\; A = 60^\\circ\\)일 때, 외접원의 반지름 \\(R\\)의 길이를 구하시오.`,
+    choices: [
+      `1`,
+      `\\(\\sqrt{2}\\)`,
+      `2`,
+      `3`
+    ],
+    correctIndex: 0
+  },
+  // 23번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 45^\\circ,\\; a = 5\\sqrt{2},\\; b = 5\\)일 때, \\(\\angle B\\)의 크기를 구하시오.`,
+    choices: [
+      `\\(15^\\circ\\)`,
+      `\\(30^\\circ\\)`,
+      `\\(45^\\circ\\)`,
+      `\\(60^\\circ\\)`
+    ],
+    correctIndex: 1
+  },
+  // 24번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(c = 5,\\; B = 30^\\circ,\\; C = 45^\\circ\\)일 때, 변 \\(b\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(\\tfrac{5\\sqrt{3}}{2}\\)`,
+      `5`,
+      `\\(\\tfrac{5\\sqrt{2}}{2}\\)`,
+      `10`
+    ],
+    correctIndex: 2
+  },
+  // 25번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a = 4,\\; A = 60^\\circ,\\; C = 45^\\circ\\)일 때, 변 \\(c\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(\\tfrac{4\\sqrt{3}}{3}\\)`,
+      `\\(\\tfrac{4\\sqrt{6}}{3}\\)`,
+      `\\(\\tfrac{2\\sqrt{6}}{3}\\)`,
+      `\\(\\tfrac{4\\sqrt{2}}{3}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 26번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(b = 2,\\; c = \\sqrt{6},\\; B = 45^\\circ\\)일 때, \\(\\angle C\\)의 크기를 구하시오.`,
+    choices: [
+      `\\(60^\\circ\\)`,
+      `\\(90^\\circ\\)`,
+      `\\(60^\\circ \\text{ 또는 } 120^\\circ\\)`,
+      `\\(45^\\circ\\)`
+    ],
+    correctIndex: 2
+  },
+  // 27번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a = 1,\\; c = \\sqrt{2},\\; C = 135^\\circ\\)일 때, \\(\\angle A\\)의 크기를 구하시오.`,
+    choices: [
+      `\\(15^\\circ\\)`,
+      `\\(30^\\circ\\)`,
+      `\\(120^\\circ\\)`,
+      `\\(150^\\circ\\)`
+    ],
+    correctIndex: 1
+  },
+  // 28번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A = 60^\\circ,\\; B = 45^\\circ,\\; a = \\sqrt{3}\\)일 때, 변 \\(b\\)의 길이를 구하시오.`,
+    choices: [
+      `\\(\\sqrt{2}\\)`,
+      `\\(\\sqrt{3}\\)`,
+      `2`,
+      `1`
+    ],
+    correctIndex: 0
+  },
+  // 40번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\begin{cases} a - 2b + c = 0 \\\\ 4a - 4b + c = 0 \\end{cases}\\) 를 만족할 때, \\(\\sin A : \\sin B : \\sin C\\)의 비를 구하시오.`,
+    choices: [
+      `\\(1 : 3 : 5\\)`,
+      `\\(2 : 3 : 4\\)`,
+      `\\(3 : 5 : 4\\)`,
+      `\\(3 : 2 : 4\\)`
+    ],
+    correctIndex: 1
+  },
+  // 41번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\begin{cases} a + b - 2c = 0 \\\\ a - 3b + c = 0 \\end{cases}\\) 를 만족할 때, \\(\\sin A : \\sin B : \\sin C\\)의 비를 구하시오.`,
+    choices: [
+      `\\(5 : 3 : 4\\)`,
+      `\\(3 : 4 : 5\\)`,
+      `\\(4 : 5 : 3\\)`,
+      `\\(3 : 5 : 4\\)`
+    ],
+    correctIndex: 0
+  },
+  // 42번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\((a+b) : (b+c) : (c+a) = 7 : 6 : 5\\) 일 때, \\(\\sin A : \\sin B : \\sin C\\)의 비를 구하시오.`,
+    choices: [
+      `\\(2 : 3 : 4\\)`,
+      `\\(3 : 2 : 4\\)`,
+      `\\(3 : 4 : 2\\)`,
+      `\\(4 : 2 : 3\\)`
+    ],
+    correctIndex: 2
+  },
+  // 43번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A : B : C = 1 : 3 : 2\\)일 때, \\(\\dfrac{c^2}{ab}\\)의 값을 구하시오 (단, \\(A + B + C = 180^\\circ\\)).`,
+    choices: [
+      `\\(\\tfrac{1}{2}\\)`,
+      `1`,
+      `\\(\\tfrac{3}{2}\\)`,
+      `2`
+    ],
+    correctIndex: 2
+  },
+  // 45번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A : B : C = 1 : 2 : 3\\)일 때, \\(\\dfrac{ab}{c^2}\\)의 값을 구하시오 (\\(A + B + C = 180^\\circ\\)).`,
+    choices: [
+      `\\(\\tfrac{1}{2}\\)`,
+      `\\(\\tfrac{\\sqrt{3}}{4}\\)`,
+      `\\(\\tfrac{\\sqrt{2}}{4}\\)`,
+      `\\(\\tfrac{3}{4}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 46번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(A : B : C = 1 : \\sqrt{3} : 2\\)일 때, \\(a : b : c\\)의 값을 구하시오.`,
+    choices: [
+      `\\(1 : \\sqrt{3} : 2\\)`,
+      `\\(\\sqrt{3} : 1 : 2\\)`,
+      `\\(1 : 2 : \\sqrt{3}\\)`,
+      `\\(2 : 1 : \\sqrt{3}\\)`
+    ],
+    correctIndex: 0
+  },
+  // 47번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin A + \\sin B + \\sin C = \\sqrt{3},\\; R = 3\\)일 때, \\(a + b + c\\)의 값을 구하시오.`,
+    choices: [
+      `\\(3\\sqrt{3}\\)`,
+      `\\(6\\sqrt{2}\\)`,
+      `\\(6\\sqrt{3}\\)`,
+      `\\(9\\sqrt{3}\\)`
+    ],
+    correctIndex: 2
+  },
+  // 48번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin A : \\sin B : \\sin C = 2 : 4 : 3\\)일 때, \\(\\dfrac{ac}{b^2}\\)의 값을 구하시오.`,
+    choices: [
+      `\\(\\tfrac{1}{4}\\)`,
+      `\\(\\tfrac{3}{8}\\)`,
+      `\\(\\tfrac{1}{2}\\)`,
+      `\\(\\tfrac{2}{3}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 49번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin A : \\sin B : \\sin C = 3 : 4 : 5\\)일 때, \\(\\dfrac{a^2}{bc}\\)의 값을 구하시오.`,
+    choices: [
+      `\\(\\tfrac{4}{5}\\)`,
+      `\\(\\tfrac{9}{20}\\)`,
+      `\\(\\tfrac{3}{5}\\)`,
+      `\\(\\tfrac{1}{2}\\)`
+    ],
+    correctIndex: 1
+  },
+  // 52번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(3 \\sin B - \\sin C = \\sin A\\) 이고, \\(a + c = 9\\)일 때, 변 \\(b\\)의 길이를 구하시오.`,
+    choices: [
+      `3`,
+      `4`,
+      `\\(\\sqrt{3}\\)`,
+      `6`
+    ],
+    correctIndex: 0
+  },
+  // 53번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin A + \\sin B - 2\\sin C = \\sqrt{2}\\), \\(a + b - 2c = 4\\) 일 때, 외접원의 반지름 \\(R\\)의 길이를 구하시오.`,
+    choices: [
+      `1`,
+      `\\(\\sqrt{2}\\)`,
+      `\\(\\sqrt{3}\\)`,
+      `2`
+    ],
+    correctIndex: 1
+  },
+  // 54번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(2 \\sin A = \\sin B + \\sin C\\), \\(2a - c = 2\\) 일 때, 변 \\(b\\)의 길이를 구하시오.`,
+    choices: [
+      `1`,
+      `2`,
+      `\\(\\sqrt{2}\\)`,
+      `4`
+    ],
+    correctIndex: 1
+  },
+  // 55번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(2 \\sin A = \\sin B + \\sin C\\), \\(b + c = 8\\) 일 때, 변 \\(a\\)의 길이를 구하시오.`,
+    choices: [
+      `2`,
+      `3`,
+      `4`,
+      `6`
+    ],
+    correctIndex: 2
+  },
+  // 56번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a \\sin A = b \\sin B\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `이등변삼각형`,
+      `직각삼각형`,
+      `부등변삼각형`
+    ],
+    correctIndex: 1
+  },
+  // 57번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a \\sin A = b \\sin B + c \\sin C\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `이등변삼각형`,
+      `직각삼각형`,
+      `예각삼각형`
+    ],
+    correctIndex: 2
+  },
+  // 58번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a \\sin A = b \\sin B = c \\sin C\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `이등변삼각형`,
+      `직각삼각형`,
+      `둔각삼각형`
+    ],
+    correctIndex: 0
+  },
+  // 59번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin^2 A + \\sin^2 B = \\sin^2 C\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `직각삼각형`,
+      `이등변삼각형`,
+      `예각삼각형`
+    ],
+    correctIndex: 1
+  },
+  // 60번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin(\\pi - A) \\sin\\bigl(\\tfrac{\\pi}{2} + B\\bigr) = 0\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `직각삼각형`,
+      `예각삼각형`,
+      `이등변삼각형`,
+      `둔각삼각형`
+    ],
+    correctIndex: 0
+  },
+  // 61번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(\\sin^2 A - \\sin^2 B = 0\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `이등변삼각형`,
+      `직각삼각형`,
+      `둔각삼각형`
+    ],
+    correctIndex: 1
+  },
+  // 62번
+  {
+    qText: `\\(\\triangle ABC\\)에서 \\(a^2 \\sin A - c^2 \\sin C = 0\\) 를 만족할 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `이등변삼각형`,
+      `직각삼각형`,
+      `부등변삼각형`
+    ],
+    correctIndex: 1
+  },
+  // 66번
+  {
+    qText: `\\(x\\)에 대한 이차방정식 \\((\\sin B - \\cos A)x^2 + 2\\cos C\\,x - \\sin B - \\cos A = 0\\)이 중근을 가질 때, 삼각형 \\(ABC\\)는 어떤 삼각형인가?`,
+    choices: [
+      `정삼각형`,
+      `예각삼각형`,
+      `직각삼각형`,
+      `이등변삼각형`
+    ],
+    correctIndex: 2
+  }
+];
+
+// 문제 인덱스를 무작위로 섞을 함수
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+// 보기를 무작위로 섞되, correctIndex도 함께 추적
+function shuffleChoices(qObj) {
+  const indices = [0, 1, 2, 3];
+  shuffleArray(indices);
+  // 새 배열
+  let newChoices = [];
+  let newCorrectIndex = 0;
+  for (let k = 0; k < indices.length; k++) {
+    newChoices[k] = qObj.choices[indices[k]];
+    if (indices[k] === qObj.correctIndex) {
+      newCorrectIndex = k;
+    }
+  }
+  qObj.choices = newChoices;
+  qObj.correctIndex = newCorrectIndex;
+}
+
+// 페이지 첫 진입 -> 이름 입력 확인
+function goToMainMenu(){
+  const nameVal = document.getElementById("nameInput").value.trim();
+  if(!nameVal){
+    alert("이름을 입력해 주세요!");
+    return;
+  }
+  userName = nameVal;
+  document.getElementById("nameInputSection").style.display = "none";
+  document.getElementById("mainMenu").style.display = "block";
+}
+
+// 난이도 선택 -> 게임 시작
+function startGame(diff){
+  difficulty = diff;
+  timeLimit = difficultyTimes[diff];
+  score = 0;
+  life = 3;
+  totalTime = 0;
+  questionsUsed = {};
+
+  // 문제 순서 셔플
+  questionOrder = [];
+  for(let i=0; i<allQuestions.length; i++){
+    questionOrder.push(i);
+  }
+  shuffleArray(questionOrder);
+
+  // 메인메뉴 숨기고 퀴즈 섹션 보이기
+  document.getElementById("mainMenu").style.display = "none";
+  document.getElementById("quizSection").style.display = "block";
+
+  // 전체 게임 시간 타이머 시작
+  if(totalTimerInterval) clearInterval(totalTimerInterval);
+  totalTimerInterval = setInterval(()=>{
+    totalTime++;
+    document.getElementById("gameTimer").innerText = `총 진행 시간: ${totalTime}초`;
+  }, 1000);
+
+  questionIndex = 0;
+  renderQuestion();
+}
+
+// 문제를 화면에 표시
+function renderQuestion(){
+  // 기회 체크
+  if(life <= 0){
+    endGame();
+    return;
+  }
+
+  if(questionIndex >= allQuestions.length){
+    // 모든 문제를 다 풀었다면 게임 종료
+    endGame();
+    return;
+  }
+
+  // 이 문제를 이미 쓴 적이 있는지 확인(중복 방지)
+  let idx = questionOrder[questionIndex];
+  while(questionsUsed[idx]){
+    // 이미 썼다면 다음으로
+    questionIndex++;
+    if(questionIndex >= allQuestions.length){
+      endGame();
+      return;
+    }
+    idx = questionOrder[questionIndex];
+  }
+  questionsUsed[idx] = true;
+
+  const qObj = JSON.parse(JSON.stringify(allQuestions[idx]));
+  // 보기 섞기
+  shuffleChoices(qObj);
+
+  // 남은 기회, 점수 표시
+  document.getElementById("lifeDisplay").innerText = `남은 기회: ${life}`;
+  document.getElementById("scoreDisplay").innerText = `점수: ${score}`;
+
+  // 문제 내용 표시
+  document.getElementById("questionText").innerHTML = qObj.qText;
+  // 보기 표시
+  const choiceBox = document.getElementById("choiceButtons");
+  choiceBox.innerHTML = "";
+  for(let i=0; i<4; i++){
+    const btn = document.createElement("button");
+    btn.className = "choiceBtn";
+    btn.innerHTML = qObj.choices[i];
+    btn.onclick = function(){
+      checkAnswer(qObj, i);
+    };
+    choiceBox.appendChild(btn);
+  }
+
+  // MathJax 렌더링
+  MathJax.typeset();
+
+  // 문제별 시간(에너지바) 처리
+  if(energyTimerInterval) clearInterval(energyTimerInterval);
+  if(timeLimit === Infinity){
+    // 하 난이도 => 시간 제한 없음
+    document.getElementById("energyBarContainer").style.display = "none";
+  } else {
+    document.getElementById("energyBarContainer").style.display = "block";
+    let remain = timeLimit;
+    let max = timeLimit;
+    // 처음 너비 100%
+    document.getElementById("energyBar").style.width = "100%";
+    energyTimerInterval = setInterval(()=>{
+      remain--;
+      let ratio = (remain / max) * 100;
+      if(ratio < 0) ratio = 0;
+      document.getElementById("energyBar").style.width = ratio + "%";
+      if(remain <= 0){
+        // 시간초과 -> 기회 1 소진
+        clearInterval(energyTimerInterval);
+        life--;
+        questionIndex++;
+        renderQuestion();
+      }
+    }, 1000);
+  }
+}
+
+// 정답 체크
+function checkAnswer(qObj, choiceIndex){
+  // 타이머 클리어
+  if(energyTimerInterval) clearInterval(energyTimerInterval);
+
+  // 맞음/틀림 확인
+  if(choiceIndex === qObj.correctIndex){
+    // 정답
+    score += difficultyScores[difficulty];
+    alert("정답입니다!");
+  } else {
+    // 오답
+    // 문제 해설(=정답) 표시
+    const realAnswerText = qObj.choices[qObj.correctIndex];
+    alert(`틀렸습니다! 정답: ${realAnswerText}`);
+    life--;
+  }
+
+  questionIndex++;
+  renderQuestion();
+}
+
+// 게임 종료
+function endGame(){
+  if(energyTimerInterval) clearInterval(energyTimerInterval);
+  if(totalTimerInterval) clearInterval(totalTimerInterval);
+
+  // 퀴즈 섹션 숨기고 결과 섹션 표시
+  document.getElementById("quizSection").style.display = "none";
+  document.getElementById("resultSection").style.display = "block";
+
+  // 최종 점수 표시
+  document.getElementById("finalScoreText").innerText =
+    `최종 점수: ${score}점 (전체 소요 시간: ${totalTime}초)`;
+}
+
+// 점수 전송
+function sendScore(){
+  // 서버 전송
+  saveData("사인법칙", userName, score, totalTime);
+}
+
+// 서버 전송 함수 (요청사항 31번)
+async function saveData(game, name, score, elapsedTime) {
+  const FUNCTION_URL = "https://us-central1-record-f420d.cloudfunctions.net/report";
+
+  const requestData = {
+      game,
+      name,
+      score: parseInt(score, 10),
+      elapsedTime: parseInt(elapsedTime, 10)
+  };
+
+  try {
+      const response = await fetch(FUNCTION_URL, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestData)
+      });
+
+      const responseData = await response.json();
+
+      if (response.ok) {
+          document.getElementById('response').innerText =
+              `성공: ${JSON.stringify(responseData, null, 2)}`;
+      } else {
+          document.getElementById('response').innerText =
+              `오류: ${JSON.stringify(responseData, null, 2)}`;
+      }
+  } catch (error) {
+      console.error('요청 실패:', error);
+      document.getElementById('response').innerText =
+          `네트워크 오류: ${error.message}`;
+  }
+}
+</script>
+</body>
+</html>
